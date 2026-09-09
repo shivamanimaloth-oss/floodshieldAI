@@ -1,0 +1,6 @@
+﻿Location,Area,Longitude,Latitude,Rainfall,Soil_moisture,Slope,Water_Level,Historical_Risk,Risk_Label
+CITY-1,KUKATPALLY,78.399,17.494,120,75,32,4.2,high,high
+CITY-2,GACHIBOWLI,78.348,17.44,45,30,15,1.5,low,low
+CITY-3,MEHDIPATNAM,78.434,17.394,180,90,40,5.1,high,critical
+CITY-4,LB NAGAR,78.556,17.345,95,60,25,3,moderate,moderate
+CITY-5,AZIZNAGAR,78.443,17.235,85,35,18,3.7,low,low
