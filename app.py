@@ -8,135 +8,159 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load data
+# Load files
 df = pd.read_csv("flood_data.csv")
 
-# Load ML model
 with open("flood_model.pkl", "rb") as file:
     model = pickle.load(file)
+
+# ---------------- HEADER ----------------
 
 st.title("🌊 FloodShield AI")
 st.subheader("Flash Flood Prediction & Early Warning System")
 
 st.write(
     "AI-based prototype for identifying flood-risk areas "
-    "and generating early warning alerts."
+    "and providing early warnings."
 )
 
 st.divider()
 
-# =====================================================
-# RISK PREDICTION FOR PARTICULAR AREA
-# =====================================================
+# ---------------- PREDICT ALL AREAS ----------------
 
-st.header("📍 Check Particular Area Risk")
+features = [
+    "Rainfall",
+    "Soil_moisture",
+    "Slope",
+    "Water_Level"
+]
 
-area_column = "Area" if "Area" in df.columns else "Location"
+df["AI_Risk"] = model.predict(df[features])
+df["AI_Risk"] = df["AI_Risk"].astype(str).str.lower()
 
-areas = df[area_column].dropna().unique()
+# ---------------- DASHBOARD SUMMARY ----------------
 
-selected_area = st.selectbox(
-    "Select Area",
-    areas
-)
+st.header("🚨 Flood Risk Dashboard")
 
-area_data = df[df[area_column] == selected_area].iloc[0]
-
-# Input data for ML model
-input_data = pd.DataFrame(
-    [[
-        area_data["Rainfall"],
-        area_data["Soil_moisture"],
-        area_data["Slope"],
-        area_data["Water_Level"]
-    ]],
-    columns=[
-        "Rainfall",
-        "Soil_moisture",
-        "Slope",
-        "Water_Level"
-    ]
-)
-
-prediction = str(model.predict(input_data)[0]).lower()
-
-# =====================================================
-# AREA DETAILS
-# =====================================================
-
-st.subheader(f"📍 {selected_area}")
+critical = df[df["AI_Risk"] == "critical"]
+high = df[df["AI_Risk"] == "high"]
+moderate = df[df["AI_Risk"] == "moderate"]
+low = df[df["AI_Risk"] == "low"]
 
 c1, c2, c3, c4 = st.columns(4)
 
-c1.metric(
-    "🌧️ Rainfall",
-    f"{area_data['Rainfall']} mm"
-)
-
-c2.metric(
-    "💧 Soil Moisture",
-    f"{area_data['Soil_moisture']} %"
-)
-
-c3.metric(
-    "⛰️ Slope",
-    f"{area_data['Slope']}°"
-)
-
-c4.metric(
-    "🌊 Water Level",
-    f"{area_data['Water_Level']} m"
-)
+c1.metric("🔴 Critical Areas", len(critical))
+c2.metric("🟠 High Risk Areas", len(high))
+c3.metric("🟡 Moderate Areas", len(moderate))
+c4.metric("🟢 Low Risk Areas", len(low))
 
 st.divider()
 
-# =====================================================
-# RISK RESULT
-# =====================================================
+# ---------------- ALERT ----------------
 
-st.header("🚨 Flood Risk Result")
-
-if prediction == "critical":
-
+if len(critical) > 0 or len(high) > 0:
     st.error(
-        "🔴 CRITICAL FLOOD RISK\n\n"
-        "⚠️ IMMEDIATE ALERT: Move to a safer location "
+        "🚨 FLOOD WARNING: High-risk areas detected. "
+        "People in affected areas should move to a safe location "
         "and follow local emergency instructions."
     )
 
-elif prediction == "high":
+# ---------------- RISKY AREAS ----------------
 
-    st.error(
-        "🟠 HIGH FLOOD RISK\n\n"
-        "⚠️ ALERT: Avoid low-lying areas and prepare "
-        "to move to a safer location."
+st.header("🔴 Risky Areas")
+
+risky = df[df["AI_Risk"].isin(["critical", "high", "moderate"])]
+
+if len(risky) > 0:
+    risky_display = risky[
+        ["Area", "Location", "Rainfall", "Soil_moisture",
+         "Slope", "Water_Level", "AI_Risk"]
+    ]
+
+    st.dataframe(
+        risky_display,
+        width="stretch",
+        hide_index=True
     )
-
-elif prediction == "moderate":
-
-    st.warning(
-        "🟡 MODERATE FLOOD RISK\n\n"
-        "⚠️ Stay alert and monitor weather conditions."
-    )
-
 else:
+    st.success("✅ No risky areas detected.")
 
-    st.success(
-        "🟢 LOW FLOOD RISK\n\n"
-        "✅ No immediate high-risk condition detected."
+# ---------------- SAFE AREAS ----------------
+
+st.header("🟢 Low-Risk / Safer Areas")
+
+safe = df[df["AI_Risk"] == "low"]
+
+if len(safe) > 0:
+    safe_display = safe[
+        ["Area", "Location", "Rainfall", "Soil_moisture",
+         "Slope", "Water_Level", "AI_Risk"]
+    ]
+
+    st.dataframe(
+        safe_display,
+        width="stretch",
+        hide_index=True
     )
-
-st.write(
-    f"### Predicted Risk Level: **{prediction.upper()}**"
-)
+else:
+    st.info("No low-risk areas found.")
 
 st.divider()
 
-# =====================================================
-# WHY IS THIS AREA RISKY?
-# =====================================================
+# ---------------- PARTICULAR AREA ----------------
 
-st.header("🔎 Why is this area risky?")
+st.header("📍 Check Particular Area")
+
+selected_area = st.selectbox(
+    "Select an area",
+    df["Area"].dropna().unique()
+)
+
+area_data = df[df["Area"] == selected_area].iloc[0]
+
+st.subheader(f"📍 {selected_area}")
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("🌧️ Rainfall", f"{area_data['Rainfall']} mm")
+col2.metric("💧 Soil Moisture", f"{area_data['Soil_moisture']} %")
+col3.metric("⛰️ Slope", f"{area_data['Slope']}°")
+col4.metric("🌊 Water Level", f"{area_data['Water_Level']} m")
+
+risk = area_data["AI_Risk"]
+
+st.subheader("🚨 Area Risk Result")
+
+if risk == "critical":
+    st.error("🔴 CRITICAL RISK")
+    st.error(
+        "🚨 IMMEDIATE WARNING: This area has very high flood risk. "
+        "Move to a safer location and follow official emergency instructions."
+    )
+
+elif risk == "high":
+    st.warning("🟠 HIGH RISK")
+    st.warning(
+        "⚠️ FLOOD ALERT: Avoid staying in this area if authorities "
+        "issue an evacuation warning."
+    )
+
+elif risk == "moderate":
+    st.warning("🟡 MODERATE RISK")
+    st.info(
+        "⚠️ Monitor rainfall and water levels. "
+        "Stay alert for further warnings."
+    )
+
+else:
+    st.success("🟢 LOW RISK")
+    st.success("✅ No significant flood risk detected in this prototype.")
+
+st.write(f"### Predicted Risk: {risk.upper()}")
+
+# ---------------- WHY RISK ----------------
+
+st.subheader("🔎 Why is this area at risk?")
 
 reasons = []
 
@@ -153,81 +177,39 @@ if area_data["Water_Level"] > 4:
     reasons.append("🌊 High water level")
 
 if reasons:
-
     for reason in reasons:
         st.write("•", reason)
-
 else:
-
     st.write("✅ No major risk factors detected.")
 
 st.divider()
 
-# =====================================================
-# ALL RISKY AREAS
-# =====================================================
+# ---------------- COMPLETE DATA ----------------
 
-st.header("🔴 Risky Areas")
+st.header("📊 Complete Area Risk Data")
 
-risky_rows = []
-
-for _, row in df.iterrows():
-
-    test_input = pd.DataFrame(
-        [[
-            row["Rainfall"],
-            row["Soil_moisture"],
-            row["Slope"],
-            row["Water_Level"]
-        ]],
-        columns=[
+st.dataframe(
+    df[
+        [
+            "Area",
+            "Location",
             "Rainfall",
             "Soil_moisture",
             "Slope",
-            "Water_Level"
+            "Water_Level",
+            "Historical_Risk",
+            "Risk_Label",
+            "AI_Risk"
         ]
-    )
-
-    risk = str(model.predict(test_input)[0]).lower()
-
-    if risk in ["high", "critical"]:
-
-        risky_rows.append({
-            "Area": row[area_column],
-            "Rainfall": row["Rainfall"],
-            "Soil Moisture": row["Soil_moisture"],
-            "Slope": row["Slope"],
-            "Water Level": row["Water_Level"],
-            "Risk Level": risk.upper()
-        })
-
-if risky_rows:
-
-    risky_df = pd.DataFrame(risky_rows)
-
-    st.dataframe(
-        risky_df,
-        width="stretch",
-        hide_index=True
-    )
-
-    st.error(
-        f"🚨 ALERT: {len(risky_df)} risky area(s) detected. "
-        "Residents in high-risk locations should follow "
-        "official local emergency guidance."
-    )
-
-else:
-
-    st.success("✅ No High/Critical risk areas detected.")
+    ],
+    width="stretch",
+    height=500,
+    hide_index=True
+)
 
 st.divider()
 
-# =====================================================
-# FOOTER
-# =====================================================
-
 st.caption(
     "FloodShield AI — SIH Prototype | "
-    "For demonstration purposes only."
+    "Demonstration purposes only."
 )
